@@ -1,0 +1,91 @@
+#!/usr/bin/python
+
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+# 
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+# 
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
+import subprocess
+import shutil
+import os
+import tarfile
+import getopt
+import sys
+
+usage = 'Usage: %s [-d dest] [-c] package' % sys.argv[0]
+
+directory = "%s" % os.getcwd()
+only_copy = False
+
+try:
+   opts, args = getopt.getopt(sys.argv[1:],"d:c")
+except getopt.GetoptError:
+   print usage 
+   sys.exit(2)
+
+for opt, arg in opts:
+   if opt == '-h':
+      print usage
+      sys.exit()
+   elif opt == "-d" :
+      directory = arg
+   elif opt == "-c" :
+      only_copy=True 
+
+if len(args) < 1:
+   sys.exit(usage)
+
+package = args[0]
+
+#List package file
+def ls_package(package):
+  p = subprocess.Popen(["dpkg", "-L", package], stdout=subprocess.PIPE)
+  (output, err) = p.communicate()
+  return output.splitlines()
+
+# Create the dir
+def mkdir_p(dir):
+  if not os.path.exists(dir):
+    os.makedirs(dir)
+
+# Copy files
+def copy_package_file(files, dest):
+  for file in files :
+    print file
+    newfile = "%s%s" % (dest,file)
+    if os.path.isdir(file):
+      mkdir_p(newfile)
+    else:
+      shutil.copy(file,newfile)
+
+#tar files
+def tar_package_file(files, dest):
+  if os.path.exists(dest):
+    print "Remove %s" % dest
+    os.remove(dest)
+
+  tar = tarfile.open(dest, "w:gz")
+
+  for file in files :
+    if os.path.isfile(file):
+      print "Adding %s" % file
+      tar.add(file)
+  tar.close()
+
+package_files = ls_package(package) 
+if only_copy :
+  directory = "%s/%s" % (directory, package)
+  mkdir_p(directory)
+  copy_package_file(output.splitlines(), directory)
+else :
+  mkdir_p(directory)
+  tar_package_file(package_files, "%s/%s.tar.gz" % (directory, package))
+
